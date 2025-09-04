@@ -1,10 +1,11 @@
 import Parsing
 import Control.Applicative
 import GHC.Internal.Read (paren)
-import Text.XHtml (base)
+import Text.XHtml (base, ddef)
 import Data.Char
 import CustomParsing
 import Data.Sequence (Seq(Empty))
+import Data.Kind (Type)
 -- Ejercicio 2
 -- Tenemos la gramática
 -- expr -> term ('+' expr | '-' expr | {empty})
@@ -107,7 +108,7 @@ type Hasktype = [Basetype]
 -- Primero definimos la gramática
 --
 -- hasktype -> basetype ('->' hasktype | {empty}) 
--- basetype -> DInt | DChar | DFloat
+-- basetype -> 'Int' | 'Char' | 'Float'
 
 
 basetype :: Parser Hasktype
@@ -155,3 +156,102 @@ hlist = do symbol "["
            t <- hlistcontent
            symbol "]"
            return t
+
+-- Ejercicio 7
+-- Podemos modelizar otra subfamilia de los tipos de datos de Haskell, más expresiva que la del ejercicio 5, mediante el siguiente tipo de datos
+data Hasktype1 = D1Int | D1Char | D1Float | Fun Hasktype1 Hasktype1      
+              deriving (Show, Eq)
+-- Por ejemplo el tipo Int -> Char -> Float será representado mediante el término Fun D1Int (Fun D1Char D1Float) mientras que el tipo (Int -> Char) -> Float, que no 
+-- pertenece a la subfamilia del ejercicio 5, será representado por Fun (Fun D1Int D1Char) D1Float
+-- Se va a escribir un parser para esta subfamilia de tipos de Haskell
+-- Primero, escribiremos la gramática correspondiente
+--
+-- hasktype1 -> hasktypeAtom1 ('->' hasktype1 | {empty})
+-- hasktypeAtom1 -> 'Int' | 'Char' | 'Float' | '(' hasktype1 ')'
+-- Luego
+
+hasktype1 :: Parser Hasktype1
+hasktype1 = do t1 <- hasktypeAtom1
+               do symbol "->"
+                  t2 <- hasktype1 
+                  return (Fun t1 t2)
+                 <|> return t1
+
+
+hasktypeAtom1 :: Parser Hasktype1
+hasktypeAtom1 = do word "Int"
+                   return D1Int
+                  <|> do word "Char"
+                         return D1Char
+                        <|> do word "Float"
+                               return D1Float
+                              <|> do symbol "("
+                                     t <- hasktype1
+                                     symbol ")"
+                                     return t
+
+-- Ejercicio 9
+-- La siguiente gramática es una simplificación de la declaración de tipos en C
+-- 
+-- declaration -> type_specifier declarator ';'
+-- declarator -> '*' declarator | direct_declarator
+-- direct_declarator -> direct_declarator '[' constant_expression ']' | '(' direct_declarator ')' direct_declarator_ | identifier direct_declarator_
+-- type_specifier -> 'int' | 'char' | 'float'
+-- constant_expression -> number
+-- 
+-- Se va a construir un parser para esta gramática y se dará los tipos adecuados para representar estas declaraciones
+-- Primero debemos eliminar la recursión a izquierda detectada
+
+-- direct_declarator ->' (' direct_declarator ')' direct_declarator_ | identifier direct_declarator_
+-- direct_declarator_ -> '[' constant_expression ']' direct_declarator_ | {empty} 
+
+data ASTOfC = Decl TypeSpecifier Declarator
+              deriving (Show, Eq)
+
+data TypeSpecifier = TInt | TChar | TFloat
+              deriving (Show, Eq)
+
+data Declarator = Pointer Declarator | DirectDeclarator DirectDeclarator
+              deriving (Show, Eq)
+
+data DirectDeclarator = Array DirectDeclarator Int | Par DirectDeclarator | Identifier String
+              deriving (Show, Eq)
+
+
+declaration :: Parser ASTOfC
+declaration = do t <- type_specifier
+                 d <- declarator
+                 symbol ";"
+                 return (Decl t d)
+
+declarator :: Parser Declarator
+declarator = do symbol "*"
+                d <- declarator
+                return (Pointer d)
+               <|> do dd <- directdeclarator 
+                      return (DirectDeclarator dd)
+
+directdeclarator :: Parser DirectDeclarator
+directdeclarator = do symbol "("
+                      dd <- directdeclarator
+                      symbol ")"
+                      dd_ <- directdeclarator_ (Par dd)
+                      return dd_
+                      <|> do i <- identifier
+                             dd_ <- directdeclarator_ (Identifier i)
+                             return dd_
+
+directdeclarator_ :: DirectDeclarator -> Parser DirectDeclarator
+directdeclarator_ d = do symbol "["
+                         n <- int
+                         symbol "]"
+                         return (Array d n)
+                        <|> return d
+
+type_specifier :: Parser TypeSpecifier
+type_specifier = do word "Int"
+                    return TInt
+                  <|> do word "Char"
+                         return TChar
+                        <|> do word "Float"
+                               return TFloat  
