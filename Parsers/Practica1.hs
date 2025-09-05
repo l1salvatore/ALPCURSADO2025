@@ -255,3 +255,59 @@ type_specifier = do word "Int"
                          return TChar
                         <|> do word "Float"
                                return TFloat  
+
+
+-- Ejercicio 8
+-- Transformar la gramática para eliminar la recursión izquierda e implementar el parser expr8 :: Parse Expr8 para la gramática transformada
+--
+-- expr -> expr ( '+' term | '-' term) | term
+-- term -> term ('*' factor | '/' factor) | factor
+-- factor -> digit | '(' expr ')'
+-- digit -> '0' | '1' | ... | '9'
+
+-- Gramátia sin recursión a izquierda
+-- expr8 -> term8 expr8_
+-- expr8_ -> '+' term8 expr8_ | '-' term8 expr8_ | {empty}
+-- term8 -> factor8 term8_
+-- term8_ -> '*' factor8 term8_ | '/' factor8 term8_ | {empty}
+-- factor8 -> digit | '(' expr8 ')'
+
+factor8 :: Parser Expr
+factor8 = do i <- integer
+             return (Num i)
+            <|> do symbol "("
+                   e <- expr8
+                   symbol ")"
+                   return e
+
+term8 :: Parser Expr
+term8 = do f <- factor8
+           t <- term8_ f
+           return t
+
+term8_ :: Expr -> Parser Expr
+term8_ t = do symbol "*"
+              f <- factor8
+              t' <- term8_ (BinOp Mul t f)
+              return t'
+             <|> do symbol "/"
+                    f <- factor8
+                    t' <- term8_ (BinOp Div t f)
+                    return t'
+                   <|> return t
+
+expr8 :: Parser Expr
+expr8 = do t <- term8
+           e <- expr8_ t
+           return e
+       
+expr8_ :: Expr -> Parser Expr
+expr8_ e = do symbol "+"
+              t <- term8
+              e' <- expr8_ (BinOp Add e t)
+              return e'
+             <|> do symbol "-"
+                    t <- term8
+                    e' <- expr8_ (BinOp Min e t)
+                    return e'
+                   <|> return e
