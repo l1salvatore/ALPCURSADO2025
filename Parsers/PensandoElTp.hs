@@ -17,7 +17,9 @@ import Distribution.Simple.PackageIndex (SearchResult(None))
 -- escaperoom -> objectlist ';' escapedoor
 -- escapedoor -> 'EscapeDoor' unlockmode
 -- unlockmode -> 'Key' integer | 'Code' string | 'Button' integer
--- objectlist -> Object name '{' objectlist '}' (',' objectlist | {{ empty }}) 
+-- objectlist -> object (',' objectlist | {{ empty }}) 
+-- object -> 'Object' name | 'Openable' name unlockmode
+                 
 
 data EscapeRoom = EscapeRoom [Object] EscapeDoor
     deriving (Eq, Show)
@@ -27,21 +29,33 @@ data EscapeDoor = EscapeDoor  UnlockMode
 data UnlockMode = Key Int | Code String | Button Int
     deriving (Eq, Show)
 
-data Object = Object String [Object] | None
+data Object = Object String [Object] | Openable String UnlockMode [Object] | None
     deriving (Eq, Show)
 
 
+
 objectlist :: Parser [Object]
-objectlist = do symbol "Object"
-                i <- identifier
-                symbol "{"
-                o <- objectlist
-                symbol "}"
+objectlist = do o <- object
                 do symbol ","
                    xs <- objectlist
-                   return ((Object i o) : xs)
-                  <|> return [Object i o]
+                   return (o : xs)
+                  <|> return [o]
               <|> return []
+
+object :: Parser Object
+object = do symbol "Object"
+            i <- identifier
+            symbol "{"
+            o <- objectlist
+            symbol "}"
+            return (Object i o)
+           <|> do symbol "Openable"
+                  i <- identifier
+                  u <- unlockmode
+                  symbol "{"
+                  o <- objectlist
+                  symbol "}"
+                  return (Openable i u o)
 
 unlockmode :: Parser UnlockMode
 unlockmode = do symbol "Key"
