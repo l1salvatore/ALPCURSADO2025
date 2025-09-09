@@ -158,7 +158,7 @@ hlist = do symbol "["
 
 -- Ejercicio 7
 -- Podemos modelizar otra subfamilia de los tipos de datos de Haskell, más expresiva que la del ejercicio 5, mediante el siguiente tipo de datos
-data Hasktype1 = D1Int | D1Char | D1Float | Fun Hasktype1 Hasktype1      
+data Hasktype1 = D7Int | D7Char | D7Float | Fun Hasktype1 Hasktype1      
               deriving (Show, Eq)
 -- Por ejemplo el tipo Int -> Char -> Float será representado mediante el término Fun D1Int (Fun D1Char D1Float) mientras que el tipo (Int -> Char) -> Float, que no 
 -- pertenece a la subfamilia del ejercicio 5, será representado por Fun (Fun D1Int D1Char) D1Float
@@ -179,11 +179,11 @@ hasktype7 = do t1 <- hasktypeAtom7
 
 hasktypeAtom7 :: Parser Hasktype1
 hasktypeAtom7 = do word "Int"
-                   return D1Int
+                   return D7Int
                   <|> do word "Char"
-                         return D1Char
+                         return D7Char
                         <|> do word "Float"
-                               return D1Float
+                               return D7Float
                               <|> do symbol "("
                                      t <- hasktype7
                                      symbol ")"
