@@ -1,6 +1,5 @@
 import Parsing
 import Control.Applicative
-import GHC.Internal.Read (paren)
 import Text.XHtml (base, ddef)
 import Data.Char
 import CustomParsing
@@ -166,27 +165,27 @@ data Hasktype1 = D1Int | D1Char | D1Float | Fun Hasktype1 Hasktype1
 -- Se va a escribir un parser para esta subfamilia de tipos de Haskell
 -- Primero, escribiremos la gramática correspondiente
 --
--- hasktype1 -> hasktypeAtom1 ('->' hasktype1 | {empty})
--- hasktypeAtom1 -> 'Int' | 'Char' | 'Float' | '(' hasktype1 ')'
+-- hasktype7 -> hasktypeAtom7 ('->' hasktype7 | {empty})
+-- hasktypeAtom7 -> 'Int' | 'Char' | 'Float' | '(' hasktype7 ')'
 -- Luego
 
-hasktype1 :: Parser Hasktype1
-hasktype1 = do t1 <- hasktypeAtom1
+hasktype7 :: Parser Hasktype1
+hasktype7 = do t1 <- hasktypeAtom7
                do symbol "->"
-                  t2 <- hasktype1 
+                  t2 <- hasktype7
                   return (Fun t1 t2)
                  <|> return t1
 
 
-hasktypeAtom1 :: Parser Hasktype1
-hasktypeAtom1 = do word "Int"
+hasktypeAtom7 :: Parser Hasktype1
+hasktypeAtom7 = do word "Int"
                    return D1Int
                   <|> do word "Char"
                          return D1Char
                         <|> do word "Float"
                                return D1Float
                               <|> do symbol "("
-                                     t <- hasktype1
+                                     t <- hasktype7
                                      symbol ")"
                                      return t
 
