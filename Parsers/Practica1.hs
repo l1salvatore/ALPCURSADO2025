@@ -32,8 +32,7 @@ term = do f <- factor
              t <- term
              return (f * t)
             <|> do char '/'
-                   t <- term
-                   return (div f t)
+                   div f <$> term
                   <|> return f
 
 -- expr no se encuentra, lo definimos
@@ -54,8 +53,7 @@ parenthesis p = do symbol "("
                    v <- parenthesis p
                    symbol ")"
                    return v
-                  <|> do x <- p
-                         return x
+                  <|> do p
 
 
 -- Ejercicio 4
@@ -71,35 +69,30 @@ factor1 = do symbol "("
              e <- expr1
              symbol ")"
              return e
-            <|> do n <- natural
-                   return (Num n)
+            <|> do Num <$> natural
 
 
 term1 :: Parser Expr
 term1 = do f <- factor1
            do symbol "*"
-              t <- term1
-              return (BinOp Mul f t)
+              BinOp Mul f <$> term1
             <|> do char '/'
-                   t <- term1
-                   return (BinOp Div f t)
+                   BinOp Div f <$> term1
                   <|> return f
 
 expr1 :: Parser Expr
 expr1 = do t <- term1
            do symbol "+"
-              e <- expr1
-              return (BinOp Add t e)
+              BinOp Add t <$> expr1
             <|> do symbol "-"
-                   e <- expr1
-                   return (BinOp Min t e)
+                   BinOp Min t <$> expr1
                   <|> return t
 
 
 -- Ejercicio 5
 
 -- Podemos modelizar una subfamilia de los tipos de datos de Haskell 
-data Basetype = DInt | DChar | DFloat 
+data Basetype = DInt | DChar | DFloat
               deriving (Eq, Show)
 type Hasktype = [Basetype]
 
@@ -117,7 +110,7 @@ basetype = do word "Int"
                     return [DChar]
                    <|> do word "Float"
                           return [DFloat]
-              
+
 hasktype :: Parser Hasktype
 hasktype = do ts <- basetype
               do symbol "->"
@@ -130,7 +123,7 @@ hasktype = do ts <- basetype
 -- Definimos el tipo de datos adecuado para representar estas listas
 data HList = Cons HListElement HList | EmptyList
        deriving (Eq, Show)
-data HListElement = Int Int | Char Char 
+data HListElement = Int Int | Char Char
        deriving (Eq, Show)
 -- Definimos la gramática para esta lista
 -- hlist -> '[' hlistcontent ']' |
@@ -139,17 +132,15 @@ data HListElement = Int Int | Char Char
 hlistcontent :: Parser HList
 hlistcontent = do i <- int
                   do symbol ","
-                     t <- hlistcontent
-                     return (Cons (Int i) t)
+                     Cons (Int i) <$> hlistcontent
                     <|> return (Cons (Int i) EmptyList)
                  <|> do char '\''
                         c <- alphanum
                         char '\''
                         do symbol ","
-                           t <- hlistcontent
-                           return (Cons (Char c) t)
+                           Cons (Char c) <$> hlistcontent
                           <|> return (Cons (Char c) EmptyList)
-                        
+
 hlist :: Parser HList
 hlist = do symbol "["
            t <- hlistcontent
@@ -158,7 +149,7 @@ hlist = do symbol "["
 
 -- Ejercicio 7
 -- Podemos modelizar otra subfamilia de los tipos de datos de Haskell, más expresiva que la del ejercicio 5, mediante el siguiente tipo de datos
-data Hasktype1 = D7Int | D7Char | D7Float | Fun Hasktype1 Hasktype1      
+data Hasktype1 = D7Int | D7Char | D7Float | Fun Hasktype1 Hasktype1
               deriving (Show, Eq)
 -- Por ejemplo el tipo Int -> Char -> Float será representado mediante el término Fun D1Int (Fun D1Char D1Float) mientras que el tipo (Int -> Char) -> Float, que no 
 -- pertenece a la subfamilia del ejercicio 5, será representado por Fun (Fun D1Int D1Char) D1Float
@@ -172,8 +163,7 @@ data Hasktype1 = D7Int | D7Char | D7Float | Fun Hasktype1 Hasktype1
 hasktype7 :: Parser Hasktype1
 hasktype7 = do t1 <- hasktypeAtom7
                do symbol "->"
-                  t2 <- hasktype7
-                  return (Fun t1 t2)
+                  Fun t1 <$> hasktype7
                  <|> return t1
 
 
@@ -225,20 +215,16 @@ declaration = do t <- type_specifier
 
 declarator :: Parser Declarator
 declarator = do symbol "*"
-                d <- declarator
-                return (Pointer d)
-               <|> do dd <- directdeclarator 
-                      return (DirectDeclarator dd)
+                Pointer <$> declarator
+               <|> do DirectDeclarator <$> directdeclarator
 
 directdeclarator :: Parser DirectDeclarator
 directdeclarator = do symbol "("
                       dd <- directdeclarator
                       symbol ")"
-                      dd_ <- directdeclarator_ (Par dd)
-                      return dd_
+                      directdeclarator_ (Par dd)
                       <|> do i <- identifier
-                             dd_ <- directdeclarator_ (Identifier i)
-                             return dd_
+                             directdeclarator_ (Identifier i)
 
 directdeclarator_ :: DirectDeclarator -> Parser DirectDeclarator
 directdeclarator_ d = do symbol "["
@@ -253,7 +239,7 @@ type_specifier = do word "Int"
                   <|> do word "Char"
                          return TChar
                         <|> do word "Float"
-                               return TFloat  
+                               return TFloat
 
 
 -- Ejercicio 8
@@ -272,8 +258,7 @@ type_specifier = do word "Int"
 -- factor8 -> digit | '(' expr8 ')'
 
 factor8 :: Parser Expr
-factor8 = do i <- integer
-             return (Num i)
+factor8 = do Num <$> integer
             <|> do symbol "("
                    e <- expr8
                    symbol ")"
@@ -281,32 +266,26 @@ factor8 = do i <- integer
 
 term8 :: Parser Expr
 term8 = do f <- factor8
-           t <- term8_ f
-           return t
+           term8_ f
 
 term8_ :: Expr -> Parser Expr
 term8_ t = do symbol "*"
               f <- factor8
-              t' <- term8_ (BinOp Mul t f)
-              return t'
+              term8_ (BinOp Mul t f)
              <|> do symbol "/"
                     f <- factor8
-                    t' <- term8_ (BinOp Div t f)
-                    return t'
+                    term8_ (BinOp Div t f)
                    <|> return t
 
 expr8 :: Parser Expr
 expr8 = do t <- term8
-           e <- expr8_ t
-           return e
-       
+           expr8_ t
+
 expr8_ :: Expr -> Parser Expr
 expr8_ e = do symbol "+"
               t <- term8
-              e' <- expr8_ (BinOp Add e t)
-              return e'
+              expr8_ (BinOp Add e t)
              <|> do symbol "-"
                     t <- term8
-                    e' <- expr8_ (BinOp Min e t)
-                    return e'
+                    expr8_ (BinOp Min e t)
                    <|> return e

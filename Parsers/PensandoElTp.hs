@@ -1,6 +1,5 @@
 import Parsing
 import Control.Applicative
-import GHC.Internal.Read (paren)
 import Text.XHtml (base, ddef)
 import Data.Char
 import CustomParsing
@@ -9,72 +8,71 @@ import Data.Kind (Type)
 import Distribution.Simple.PackageIndex (SearchResult(None))
 
 -- Pensando el TP
--- ¿DSL para definir un modelo o facilitar la construcción de escape rooms?
+-- ¿DSL para modelar cadenas de markov y realizar simulaciones?
+-- Está pensado como máquinas de estados para realizar simulaciones de un sistema que evoluciona en el tiempo
+-- Se lo podría configurar como un pequeño proceso que lanze eventos que cualquier otro proceso pueda escuchar
+-- y actuar en consecuencia.
 --
 --
 -- pensamos la gramática
 --
--- escaperoom -> objectlist ';' escapedoor
--- escapedoor -> 'EscapeDoor' unlockmode
--- unlockmode -> 'Key' integer | 'Code' string | 'Button' integer
--- objectlist -> object (',' objectlist | {{ empty }}) 
--- object -> 'Object' name | 'Openable' name unlockmode
-                 
+-- MarkovChain -> "States" ":" "{" States "}" "Transitions" ":" Transitions "InitialDistribution" ":" InitialDistribution "Steps" ":" Steps
+-- States -> State (',' States | {empty})
+-- Transitions -> State '->' State ',' Prob ';' (Transitions | {empty})
+-- InitialDistribution -> State ':' Prob ';' (InitialDistribution | {empty})
+-- State -> identifier
+-- Prob -> decimal
+-- Steps -> integer
 
-data EscapeRoom = EscapeRoom [Object] EscapeDoor
+data MarkovChain = MC States Transitions InitialDistribution Steps
     deriving (Eq, Show)
-data EscapeDoor = EscapeDoor  UnlockMode
-    deriving (Eq, Show)
-
-data UnlockMode = Key Int | Code String | Button Int
-    deriving (Eq, Show)
-
-data Object = Object String [Object] | Openable String UnlockMode [Object] | None
-    deriving (Eq, Show)
-
+type States = [State]
+type Transitions = [Transition]
+type InitialDistribution = [InitialProb]
+type Steps = Int
+type State = String
+type Transition = (State, State, Double)
+type InitialProb = (State, Double)
 
 
-objectlist :: Parser [Object]
-objectlist = do o <- object
-                do symbol ","
-                   xs <- objectlist
-                   return (o : xs)
-                  <|> return [o]
-              <|> return []
 
-object :: Parser Object
-object = do symbol "Object"
-            i <- identifier
+
+markovChain :: Parser MarkovChain
+markovChain = do s <- states
+                 t <- transitions
+                 i <- initialDistribution
+                 MC s t i <$> steps
+
+
+states :: Parser States
+states = do symbol "States"
+            symbol ":"
             symbol "{"
-            o <- objectlist
+            ss <- identifier `sepBy` symbol ","
             symbol "}"
-            return (Object i o)
-           <|> do symbol "Openable"
-                  i <- identifier
-                  u <- unlockmode
-                  symbol "{"
-                  o <- objectlist
-                  symbol "}"
-                  return (Openable i u o)
+            return ss
 
-unlockmode :: Parser UnlockMode
-unlockmode = do symbol "Key"
-                i <- integer
-                return (Key i)
-               <|> do symbol "Code"
-                      i <- identifier
-                      return (Code i)
-                     <|> do symbol "Button"
-                            i <- integer
-                            return (Button i)
+transitions :: Parser Transitions
+transitions = do symbol "Transitions"
+                 symbol ":"
+                 transition `endBy` symbol ";"
+    where transition = do from <- identifier
+                          symbol "->"
+                          to <- identifier
+                          symbol ":"
+                          p <- decimal
+                          return (from, to, p)
 
-escapedoor :: Parser EscapeDoor
-escapedoor = do symbol "EscapeDoor"
-                u <- unlockmode
-                return (EscapeDoor u)
+initialDistribution :: Parser InitialDistribution
+initialDistribution = do symbol "InitialDistribution"
+                         symbol ":"
+                         initialProb `endBy` symbol ";"
+    where initialProb = do s <- identifier
+                           symbol ":"
+                           p <- decimal
+                           return (s, p)
 
-escaperoom :: Parser EscapeRoom
-escaperoom = do o <- objectlist
-                symbol ";"
-                e <- escapedoor
-                return (EscapeRoom o e)
+steps :: Parser Steps
+steps = do symbol "Steps"
+           symbol ":"
+           integer
