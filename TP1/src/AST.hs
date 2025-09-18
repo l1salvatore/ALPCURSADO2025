@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternSynonyms #-}
 module AST where
 
 -- Identificadores de Variable
@@ -14,6 +17,7 @@ data Exp a where
   Minus  :: Exp Int -> Exp Int -> Exp Int
   Times  :: Exp Int -> Exp Int -> Exp Int
   Div    :: Exp Int -> Exp Int -> Exp Int
+  VarInc :: Exp Int -> Exp Int -- x++
 
   -- Expresiones booleanas
   BTrue  :: Exp Bool
@@ -41,5 +45,15 @@ data Comm
 
 pattern IfThen :: Exp Bool -> Comm -> Comm
 pattern IfThen b c = IfThenElse b c Skip
+pattern Case :: Exp Bool -> Comm -> Maybe Comm -> Comm
+pattern Case b c rest <- IfThenElse b c (restFromSkip -> rest)
+  where
+    Case b c Nothing  = IfThenElse b c Skip
+    Case b c (Just r) = IfThenElse b c r
+
+-- view helper
+restFromSkip :: Comm -> Maybe Comm
+restFromSkip Skip = Nothing
+restFromSkip r    = Just r
 
 data Error = DivByZero | UndefVar deriving (Eq, Show)
