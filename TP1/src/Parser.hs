@@ -4,6 +4,7 @@ import           Text.ParserCombinators.Parsec
 import           Text.Parsec.Token
 import           Text.Parsec.Language           ( emptyDef )
 import           AST
+import GHC.Generics (Par1)
 
 -----------------------
 -- Función para facilitar el testing del parser.
@@ -46,72 +47,39 @@ lis = makeTokenParser
 -----------------------------------
 -- intexp ::= intexp1 intexp1_tail
 intexp :: Parser (Exp Int)
-intexp = do e <- intexp1
-            f <- intexp1_tail
-            return (f e)
+intexp = intterm `chainl1` intaddterms
 
--- intexp1 ::= intexp2 intexp1_tail
-intexp1 :: Parser (Exp Int)
-intexp1 = do left <- intexp2
-             f <- intexp1_tail 
-             return (f left)
+intaddterms :: Parser (Exp Int -> Exp Int -> Exp Int)
+intaddterms = do reservedOp lis "+"
+                 return Plus
+                <|> do reservedOp lis "-"
+                       return Minus
 
--- intexp1_tail ::= "+" intexp2 intexp1_tail
---               | "-" intexp2 intexp1_tail
---               | ε
-intexp1_tail :: Parser (Exp Int -> Exp Int)
-intexp1_tail = do reservedOp lis "+"
-                  right <- intexp2
-                  f <- intexp1_tail
-                  return (\x -> f (Plus x right))
-                 <|> do reservedOp lis "-"
-                        right <- intexp2
-                        f <- intexp1_tail
-                        return (\x -> f (Minus x right))
-                       <|> return id
+intterm :: Parser (Exp Int)
+intterm = factor `chainl1` intMultterms
 
--- intexp2 ::= intexp3 intexp2_tail
-intexp2 :: Parser (Exp Int)
-intexp2 = do left <- intexp3
-             f <- intexp2_
-             return (f left)
+intMultterms :: Parser (Exp Int -> Exp Int -> Exp Int)
+intMultterms = do reservedOp lis "*"
+                  return Times
+                 <|> do reservedOp lis "/"
+                        return Div
 
--- intexp2_tail ::= "*" intexp3 intexp2_tail
---               | "/" intexp3 intexp2_tail
---               | ε
-intexp2_ :: Parser (Exp Int -> Exp Int)
-intexp2_ = do reservedOp lis "*"
-              right <- intexp3
-              f <- intexp2_
-              return (\x -> f (Times x right))
-             <|> do reservedOp lis "/"
-                    right <- intexp3
-                    f <- intexp2_
-                    return (\x -> f (Div x right))
-                   <|> return id
 
--- intexp3 ::= natural
---          | identifier
---          | "-" intexp3
---          | "(" intexp ")"
---          | identifier "++"
---          | intexp
-
-intexp3 :: Parser (Exp Int)
-intexp3 = do n <- natural lis
-             return (Const (fromInteger n))
-            <|> do v <- identifier lis
-                   return (Var v)
-            <|> do reservedOp lis "-"
-                   UMinus <$> intexp3
-            <|> do reservedOp lis "("
-                   e <- intexp
-                   reservedOp lis ")"
-                   return e
-            <|> do v <- identifier lis
-                   reservedOp lis "++"
-                   return (VarInc (Var v))
-                  <|> intexp
+factor :: Parser (Exp Int)
+factor = do n <- natural lis
+            return (Const (fromInteger n))
+           <|> do v <- identifier lis
+                  return (Var v)
+           <|> do reservedOp lis "-"
+                  UMinus <$> factor
+           <|> do reservedOp lis "("
+                  e <- intexp
+                  reservedOp lis ")"
+                  return e
+           <|> do v <- identifier lis
+                  reservedOp lis "++"
+                  return (VarInc (Var v))
+                 <|> intexp
 
 
 ------------------------------------
@@ -119,16 +87,86 @@ intexp3 = do n <- natural lis
 ------------------------------------
 
 boolexp :: Parser (Exp Bool)
-boolexp = undefined
+boolexp = boolterm `chainl1` boolOpterms
 
+boolOpterms :: Parser (Exp Bool -> Exp Bool -> Exp Bool)
+boolOpterms = do reservedOp lis "||"
+                 return Or
+               <|> do reservedOp lis "&&"
+                      return And
+
+boolterm :: Parser (Exp Bool)
+boolterm = do reserved lis "true"
+              return BTrue
+             <|> do reserved lis "false"
+                    return BFalse
+                   <|> do reservedOp lis "!"
+                          Not <$> boolterm
+                         <|> do reservedOp lis "("
+                                boolexp <* reservedOp lis ")"
+                               <|> try boolRelexp
+
+boolRelexp :: Parser (Exp Bool)
+boolRelexp = do e1 <- intexp
+                do reservedOp lis "<"
+                   Lt e1 <$> intexp
+                  <|> do reservedOp lis ">"
+                         Gt e1 <$> intexp
+                        <|> do reservedOp lis "=="
+                               Eq e1 <$> intexp
+                              <|> do reservedOp lis "!="
+                                     NEq e1 <$> intexp
 -----------------------------------
 --- Parser de comandos
 -----------------------------------
 
 comm :: Parser Comm
-comm = undefined
+comm = commterm `chainl1` seqOpterms
+
+seqOpterms :: Parser (Comm -> Comm -> Comm)
+seqOpterms = do reservedOp lis ";"
+                return Seq
+
+commterm :: Parser Comm
+commterm = do reservedOp lis "skip"
+              return Skip
+             <|> (do reservedOp lis "if"
+                     b <- boolexp
+                     reservedOp lis "then"
+                     c1 <- comm
+                     do reservedOp lis "else"
+                        IfThenElse b c1 <$> comm
+                      <|> return (IfThen b c1))
+                     <|> do reservedOp lis "repeat"
+                            c <- comm
+                            reservedOp lis "until"
+                            RepeatUntil c <$> boolexp
+                           <|> do casecommterm
+                                 <|> do v <- identifier lis
+                                        reservedOp lis "="
+                                        Let v <$> intexp
+                                       <|> do reservedOp lis "("
+                                              c <- comm
+                                              reservedOp lis ")"
+                                              return c
 
 
+casecommterm :: Parser Comm
+casecommterm = do reservedOp lis "case"
+                  reservedOp lis "{"
+                  c <- casebranches
+                  reservedOp lis "}"
+                  return c
+
+casebranches :: Parser Comm
+casebranches = do
+              b <- boolexp
+              reservedOp lis ":"
+              reservedOp lis "{"
+              c <- comm
+              reservedOp lis "}"
+              mb <- optionMaybe casebranches
+              return (Case b c mb)
 ------------------------------------
 -- Función de parseo
 ------------------------------------
