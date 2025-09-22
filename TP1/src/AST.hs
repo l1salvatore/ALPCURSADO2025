@@ -45,11 +45,22 @@ data Comm
 
 pattern IfThen :: Exp Bool -> Comm -> Comm
 pattern IfThen b c = IfThenElse b c Skip
-pattern Case :: Exp Bool -> Comm -> Maybe Comm -> Comm
-pattern Case b c rest <- IfThenElse b c (restFromSkip -> rest)
+pattern Case :: [(Exp Bool, Comm)] -> Comm
+pattern Case branches <- (seqListView -> branches)
   where
-    Case b c Nothing  = IfThenElse b c Skip
-    Case b c (Just r) = IfThenElse b c r
+    Case branches = seqList branches
+
+-- Helper function for the view pattern
+seqListView :: Comm -> [(Exp Bool, Comm)]
+seqListView Skip = []
+seqListView (Seq (IfThen b c) rest) = (b, c) : seqListView rest
+seqListView _ = error "Not a Case sequence"
+
+-- Helper to convert a sequence of IfThen commands into a list of branches
+seqList :: [(Exp Bool, Comm)] -> Comm
+seqList [] = Skip
+seqList ((b, c):xs) = Seq (IfThen b c) (seqList xs)
+
 
 -- view helper
 restFromSkip :: Comm -> Maybe Comm

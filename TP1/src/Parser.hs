@@ -23,8 +23,9 @@ lis = makeTokenParser
     , commentEnd      = "*/"
     , commentLine     = "//"
     , opLetter        = char '='
-    , reservedNames   = ["true", "false", "skip", "if", "else", "repeat", "until"]
+    , reservedNames   = ["true", "false", "skip", "if", "else", "repeat", "until", "case"]
     , reservedOpNames = [ "+"
+                        , "++"
                         , "-"
                         , "*"
                         , "/"
@@ -54,7 +55,7 @@ intaddterms = do reservedOp lis "+"
                  return Plus
                 <|> do reservedOp lis "-"
                        return Minus
-
+                
 intterm :: Parser (Exp Int)
 intterm = factor `chainl1` intMultterms
 
@@ -76,10 +77,6 @@ factor = do n <- natural lis
                   e <- intexp
                   reservedOp lis ")"
                   return e
-           <|> do v <- identifier lis
-                  reservedOp lis "++"
-                  return (VarInc (Var v))
-                 <|> intexp
 
 
 ------------------------------------
@@ -128,45 +125,40 @@ seqOpterms = do reservedOp lis ";"
                 return Seq
 
 commterm :: Parser Comm
-commterm = do reservedOp lis "skip"
-              return Skip
-             <|> (do reservedOp lis "if"
-                     b <- boolexp
-                     reservedOp lis "then"
-                     c1 <- comm
-                     do reservedOp lis "else"
-                        IfThenElse b c1 <$> comm
-                      <|> return (IfThen b c1))
-                     <|> do reservedOp lis "repeat"
-                            c <- comm
-                            reservedOp lis "until"
-                            RepeatUntil c <$> boolexp
-                           <|> do casecommterm
-                                 <|> do v <- identifier lis
-                                        reservedOp lis "="
-                                        Let v <$> intexp
-                                       <|> do reservedOp lis "("
-                                              c <- comm
-                                              reservedOp lis ")"
-                                              return c
-
-
-casecommterm :: Parser Comm
-casecommterm = do reservedOp lis "case"
-                  reservedOp lis "{"
-                  c <- casebranches
-                  reservedOp lis "}"
-                  return c
-
-casebranches :: Parser Comm
-casebranches = do
-              b <- boolexp
-              reservedOp lis ":"
-              reservedOp lis "{"
-              c <- comm
-              reservedOp lis "}"
-              mb <- optionMaybe casebranches
-              return (Case b c mb)
+commterm = (do reservedOp lis "if"
+               b <- boolexp
+               reservedOp lis "then"
+               c1 <- comm
+               do reservedOp lis "else"
+                  IfThenElse b c1 <$> comm
+                 <|> return (IfThen b c1))
+               <|> do reservedOp lis "repeat"
+                      c <- comm
+                      reservedOp lis "until"
+                      RepeatUntil c <$> boolexp
+                     <|> do v <- identifier lis
+                            reservedOp lis "="
+                            Let v <$> intexp
+                           <|> do reservedOp lis "("
+                                  c <- comm
+                                  reservedOp lis ")"
+                                  return c
+                                 <|> do reservedOp lis "skip"
+                                        return Skip
+                                       <|> return Skip
+                                   --           do reservedOp lis "case"
+                                   --      reservedOp lis "{"
+                                   --      cs <- casebranch
+                                   --      reservedOp lis "}"
+                                   --      return (Case [cs])
+                                   --     <|> 
+casebranch :: Parser (Exp Bool, Comm)
+casebranch = do b <- boolexp
+                reservedOp lis ":"
+                reservedOp lis "{"
+                c <- comm
+                reservedOp lis "}"
+                return (b, c)
 ------------------------------------
 -- Función de parseo
 ------------------------------------
