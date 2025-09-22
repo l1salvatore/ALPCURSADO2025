@@ -1,0 +1,42 @@
+
+Transformamos la gramática para expresiones enteras 
+
+
+intexp ::= intexp '+' intterm 
+         | intexp '-' intterm 
+         | intterm
+
+intterm ::= intterm '*' intfactor 
+          | intterm '/' intfactor
+          | intfactor
+
+intfactor ::= '(' intexp ')'
+            | integer
+            | identifier
+            | '-' intfactor
+            | identifier '++'
+
+Para expresiones booleanas 
+
+boolexp ::= boolexp '&&' boolterm
+          | boolexp '||' boolterm
+          | boolterm
+    
+boolterm ::= 'true'
+            |'false'
+            | intexp '==' intexp
+            | intexp '!=' intexp
+            | intexp '<' intexp
+            | intexp '>' intexp
+            | '!' boolterms
+
+comm ::= comm ';' commterm
+
+commterm ::= 'skip'
+           | 'let' identifier '=' intexp
+           | 'if' boolexp 'then' comm 'else' comm
+           | 'repeat' comm 'until' boolexp
+           | 'case' '{' casebranches '}' 
+
+casebranches ::= boolexp ':' '{' comm '}' casebranches
+               | e

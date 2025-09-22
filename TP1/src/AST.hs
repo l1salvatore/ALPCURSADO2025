@@ -17,7 +17,7 @@ data Exp a where
   Minus  :: Exp Int -> Exp Int -> Exp Int
   Times  :: Exp Int -> Exp Int -> Exp Int
   Div    :: Exp Int -> Exp Int -> Exp Int
-  VarInc :: Exp Int -> Exp Int -- x++
+  VarInc :: Variable -> Exp Int -- x++
 
   -- Expresiones booleanas
   BTrue  :: Exp Bool

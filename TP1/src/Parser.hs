@@ -47,38 +47,53 @@ lis = makeTokenParser
 --- Parser de expresiones enteras
 -----------------------------------
 -- intexp ::= intexp1 intexp1_tail
+
+
+-- intexp ::= intterm '+' intterm 
+--          | intterm '-' intterm 
+--          | intterm
+
+-- intterm ::= intfactor '*' intfactor 
+--           | intfactor '/' intfactor
+--           | intfactor
+
+-- intfactor ::= '(' intexp ')'
+--             | integer
+--             | identifier
+--             | '-' identifier
 intexp :: Parser (Exp Int)
-intexp = intterm `chainl1` intaddterms
+intexp = intterm `chainl1` intOpterms
 
-intaddterms :: Parser (Exp Int -> Exp Int -> Exp Int)
-intaddterms = do reservedOp lis "+"
-                 return Plus
-                <|> do reservedOp lis "-"
-                       return Minus
-                
+intOpterms :: Parser (Exp Int -> Exp Int -> Exp Int)
+intOpterms = do reservedOp lis "+"
+                return Plus
+              <|> do reservedOp lis "-"
+                     return Minus
+
 intterm :: Parser (Exp Int)
-intterm = factor `chainl1` intMultterms
+intterm = intfactor `chainl1` intOpfactors
 
-intMultterms :: Parser (Exp Int -> Exp Int -> Exp Int)
-intMultterms = do reservedOp lis "*"
+intOpfactors :: Parser (Exp Int -> Exp Int -> Exp Int)
+intOpfactors = do reservedOp lis "*"
                   return Times
                  <|> do reservedOp lis "/"
                         return Div
 
-
-factor :: Parser (Exp Int)
-factor = do n <- natural lis
-            return (Const (fromInteger n))
-           <|> do v <- identifier lis
-                  return (Var v)
-           <|> do reservedOp lis "-"
-                  UMinus <$> factor
-           <|> do reservedOp lis "("
-                  e <- intexp
-                  reservedOp lis ")"
-                  return e
-
-
+intfactor :: Parser (Exp Int)
+intfactor = do reservedOp lis "("
+               e <- intexp
+               reservedOp lis ")"   
+               return e
+              <|> do n <- natural lis
+                     return (Const (fromInteger n))
+                  <|> do v <- identifier lis
+                         return (Var v)
+                        <|> do reservedOp lis "-"
+                               v <- identifier lis
+                               return (UMinus (Var v))
+                            --   <|> do v <- identifier lis
+                            --          reservedOp lis "++"
+                            --          return (VarInc v)
 ------------------------------------
 --- Parser de expresiones booleanas
 ------------------------------------
@@ -148,17 +163,17 @@ commterm = (do reservedOp lis "if"
                                        <|> return Skip
                                    --           do reservedOp lis "case"
                                    --      reservedOp lis "{"
-                                   --      cs <- casebranch
+                                   --      cs <- casebranches
                                    --      reservedOp lis "}"
                                    --      return (Case [cs])
                                    --     <|> 
-casebranch :: Parser (Exp Bool, Comm)
-casebranch = do b <- boolexp
-                reservedOp lis ":"
-                reservedOp lis "{"
-                c <- comm
-                reservedOp lis "}"
-                return (b, c)
+casebranches :: Parser (Exp Bool, Comm)
+casebranches = do b <- boolexp
+                  reservedOp lis ":"
+                  reservedOp lis "{"
+                  c <- comm
+                  reservedOp lis "}"
+                  return (b, c)
 ------------------------------------
 -- Función de parseo
 ------------------------------------
