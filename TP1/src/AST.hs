@@ -53,13 +53,13 @@ pattern Case branches <- (seqListView -> branches)
 -- Helper function for the view pattern
 seqListView :: Comm -> [(Exp Bool, Comm)]
 seqListView Skip = []
-seqListView (Seq (IfThen b c) rest) = (b, c) : seqListView rest
+seqListView (IfThenElse b c rest) = (b, c) : seqListView rest
 seqListView _ = error "Not a Case sequence"
 
 -- Helper to convert a sequence of IfThen commands into a list of branches
 seqList :: [(Exp Bool, Comm)] -> Comm
 seqList [] = Skip
-seqList ((b, c):xs) = Seq (IfThen b c) (seqList xs)
+seqList ((b, c):xs) = IfThenElse b c (seqList xs)
 
 
 -- view helper

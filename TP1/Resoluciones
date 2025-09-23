@@ -33,7 +33,7 @@ boolterm ::= 'true'
 comm ::= comm ';' commterm
 
 commterm ::= 'skip'
-           | 'let' identifier '=' intexp
+           | identifier '=' intexp
            | 'if' boolexp 'then' comm 'else' comm
            | 'repeat' comm 'until' boolexp
            | 'case' '{' casebranches '}' 

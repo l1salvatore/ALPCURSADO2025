@@ -46,21 +46,7 @@ lis = makeTokenParser
 -----------------------------------
 --- Parser de expresiones enteras
 -----------------------------------
--- intexp ::= intexp1 intexp1_tail
 
-
--- intexp ::= intterm '+' intterm 
---          | intterm '-' intterm 
---          | intterm
-
--- intterm ::= intfactor '*' intfactor 
---           | intfactor '/' intfactor
---           | intfactor
-
--- intfactor ::= '(' intexp ')'
---             | integer
---             | identifier
---             | '-' identifier
 intexp :: Parser (Exp Int)
 intexp = intterm `chainl1` intOpterms
 
@@ -160,13 +146,12 @@ commterm = (do reservedOp lis "if"
                                   return c
                                  <|> do reservedOp lis "skip"
                                         return Skip
-                                       <|> return Skip
-                                   --           do reservedOp lis "case"
-                                   --      reservedOp lis "{"
-                                   --      cs <- casebranches
-                                   --      reservedOp lis "}"
-                                   --      return (Case [cs])
-                                   --     <|> 
+                                       <|>  do reservedOp lis "case"
+                                               reservedOp lis "{"
+                                               cs <- many casebranches
+                                               reservedOp lis "}"
+                                               return (Case cs)
+                                               
 casebranches :: Parser (Exp Bool, Comm)
 casebranches = do b <- boolexp
                   reservedOp lis ":"
