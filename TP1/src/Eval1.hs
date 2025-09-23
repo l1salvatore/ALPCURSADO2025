@@ -109,3 +109,4 @@ evalExp (Or p1 p2) s = let (b1 :!: s') = evalExp p1 s
 evalExp (And p1 p2) s = let (b1 :!: s') = evalExp p1 s
                             (b2 :!: s'') = evalExp p2 s'
                         in ((b1 && b2) :!: s'')                
+evalExp (VarInc v) s = (0 :!: s)
