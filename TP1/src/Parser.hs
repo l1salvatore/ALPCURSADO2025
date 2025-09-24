@@ -68,15 +68,14 @@ intOpfactors = do reservedOp lis "*"
 intfactor :: Parser (Exp Int)
 intfactor = do reservedOp lis "("
                e <- intexp
-               reservedOp lis ")"   
+               reservedOp lis ")"
                return e
               <|> do n <- natural lis
                      return (Const (fromInteger n))
                   <|> do v <- identifier lis
                          return (Var v)
                         <|> do reservedOp lis "-"
-                               v <- identifier lis
-                               return (UMinus (Var v))
+                               UMinus <$> intfactor
                             --   <|> do v <- identifier lis
                             --          reservedOp lis "++"
                             --          return (VarInc v)
@@ -134,7 +133,9 @@ commterm = (do reservedOp lis "if"
                   IfThenElse b c1 <$> comm
                  <|> return (IfThen b c1))
                <|> do reservedOp lis "repeat"
+                      reservedOp lis "{"
                       c <- comm
+                      reservedOp lis "}"
                       reservedOp lis "until"
                       RepeatUntil c <$> boolexp
                      <|> do v <- identifier lis
@@ -151,7 +152,7 @@ commterm = (do reservedOp lis "if"
                                                cs <- many casebranches
                                                reservedOp lis "}"
                                                return (Case cs)
-                                               
+
 casebranches :: Parser (Exp Bool, Comm)
 casebranches = do b <- boolexp
                   reservedOp lis ":"
