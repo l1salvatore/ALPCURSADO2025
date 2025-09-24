@@ -49,7 +49,7 @@ lis = makeTokenParser
 
 intexp :: Parser (Exp Int)
 intexp = intterm `chainl1` intOpterms
-
+       <|> intterm
 intOpterms :: Parser (Exp Int -> Exp Int -> Exp Int)
 intOpterms = do reservedOp lis "+"
                 return Plus
@@ -58,7 +58,8 @@ intOpterms = do reservedOp lis "+"
 
 intterm :: Parser (Exp Int)
 intterm = intfactor `chainl1` intOpfactors
-
+       <|> intfactor 
+       
 intOpfactors :: Parser (Exp Int -> Exp Int -> Exp Int)
 intOpfactors = do reservedOp lis "*"
                   return Times
@@ -73,12 +74,11 @@ intfactor = do reservedOp lis "("
               <|> do n <- natural lis
                      return (Const (fromInteger n))
                   <|> do v <- identifier lis
-                         return (Var v)
+                         do reservedOp lis "++"
+                            return (VarInc v)
+                           <|> return (Var v)
                         <|> do reservedOp lis "-"
                                UMinus <$> intfactor
-                            --   <|> do v <- identifier lis
-                            --          reservedOp lis "++"
-                            --          return (VarInc v)
 ------------------------------------
 --- Parser de expresiones booleanas
 ------------------------------------

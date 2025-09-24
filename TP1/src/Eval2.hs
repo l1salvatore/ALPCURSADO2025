@@ -90,8 +90,8 @@ evalExp (Div e1 e2) s =case evalExp e1 s of
                             case evalExp e2 s' of
                                 Left err -> Left err
                                 Right (n1 :!: s'') -> if n1 == 0 then Left DivByZero else Right (div n0 n1 :!: s'')
-evalExp (BTrue) s = Right (True :!: s)
-evalExp (BFalse) s = Right (False :!: s)
+evalExp BTrue s = Right (True :!: s)
+evalExp BFalse s = Right (False :!: s)
 evalExp (Eq e1 e2) s = case evalExp e1 s of
                         Left err -> Left err
                         Right (n0 :!: s')  ->
