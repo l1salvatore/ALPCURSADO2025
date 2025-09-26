@@ -58,8 +58,8 @@ intOpterms = do reservedOp lis "+"
 
 intterm :: Parser (Exp Int)
 intterm = intfactor `chainl1` intOpfactors
-       <|> intfactor 
-       
+       <|> intfactor
+
 intOpfactors :: Parser (Exp Int -> Exp Int -> Exp Int)
 intOpfactors = do reservedOp lis "*"
                   return Times
@@ -76,9 +76,10 @@ intfactor = do reservedOp lis "("
                   <|> do v <- identifier lis
                          do reservedOp lis "++"
                             return (VarInc v)
-                           <|> return (Var v)
+                            <|> return (Var v)
                         <|> do reservedOp lis "-"
                                UMinus <$> intfactor
+
 ------------------------------------
 --- Parser de expresiones booleanas
 ------------------------------------

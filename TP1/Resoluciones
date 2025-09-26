@@ -1,4 +1,8 @@
 
+-- Consulta
+-- a++, cómo se puede expresar en la gramática dada?
+
+
 Transformamos la gramática para expresiones enteras 
 
 
@@ -12,9 +16,8 @@ intterm ::= intterm '*' intfactor
 
 intfactor ::= '(' intexp ')'
             | integer
-            | identifier
+            | identifier ( '++' | e)
             | '-' intfactor
-            | identifier '++'
 
 Para expresiones booleanas 
 
@@ -36,7 +39,13 @@ commterm ::= 'skip'
            | identifier '=' intexp
            | 'if' boolexp 'then' comm 'else' comm
            | 'repeat' comm 'until' boolexp
-           | 'case' '{' casebranches '}' 
+           | 'case's '{' casebranches '}' 
 
 casebranches ::= boolexp ':' '{' comm '}' casebranches
                | e
+
+
+-- Ejercicio 4
+                 <e0, O> =>exp <n0, O>
+________________________________________________(VarInc)
+      <e0++, O> =>exp <n0+1, [O | n0 : n0 +1]>
